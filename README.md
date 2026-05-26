@@ -171,8 +171,8 @@ Proprietary - BreatheESG Technical Assessment
 ## Author
 
 Adesh Kishor Deshmukh  
-Email: adesh@example.com  
-GitHub: @adeshdeshmukh
+Email: adeshdeshmukh.dev@gmail.com  
+GitHub: @AdeshDeshmukh
 
 ## Acknowledgments
 
