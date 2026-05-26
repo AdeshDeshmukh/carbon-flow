@@ -58,63 +58,85 @@ Emission records progress through states: `pending` → `approved` → `locked`.
 ## Entity-Relationship Diagram
 
 ```
-┌──────────────────┐
-│ companies │
-│ │
-│ PK: id │
-│ name │
-│ created_at │
-│ is_active │
-└────────┬─────────┘
-│
-│ 1:N
-│
-┌────┴─────────────────┬──────────────────┬─────────────────┐
-│ │ │ │
-┌───▼──────────┐ ┌──────▼─────────┐ ┌────▼────────┐ ┌────▼──────────┐
-│data_sources │ │ emissions │ │ingestion_ │ │ emission_ │
-│ │ │ │ │ jobs │ │ factors │
-│PK: id │───>│PK: id │ │ │ │ │
-│FK: company_id│ 1:N│FK: company_id │ │PK: id │ │PK: id │
-│ source_type│ │ data_source │ │FK: data_ │ │ fuel_type │
-│ name │ │ ingestion_job│ │ source_id │ │ scope │
-│ config │ │ scope │ │ status │ │ factor_ │
-└──────┬───────┘ │ category │ │ started_at│ │ kg_co2e │
-│ │ activity_date│ │ file_name │ │ unit │
-│ 1:N │ original_* │ └─────────────┘ │ source │
-│ │ normalized_* │ └───────────────┘
-│ │ co2e_kg │
-│ │ status │
-│ │ reviewed_by │
-│ │ raw_data │
-│ └────────┬───────┘
-│ │
-│ │ 1:N
-│ ┌────▼─────────┐
-│ │ audit_logs │
-│ │ │
-│ │PK: id │
-│ │FK: emission │
-│ │ user │
-│ │ action │
-│ │ old_value │
-│ │ new_value │
-│ │ timestamp │
-│ └──────────────┘
-│
-│ 1:N
-┌────▼────────┐
-│ facilities │
-│ │
-│PK: id │
-│FK: data_ │
-│ source_id │
-│ name │
-│ plant_code│
-│ address │
-│ lat │
-│ long │
-└─────────────┘
+                           ┌─────────────────────┐
+                           │    COMPANIES        │
+                           │                     │
+                           │  PK: id             │
+                           │  name               │
+                           │  created_at         │
+                           │  is_active          │
+                           └──────────┬──────────┘
+                                      │
+                                      │ 1:N
+                                      │
+                    ┌─────────────────┼─────────────────┬──────────────────┐
+                    │                 │                 │                  │
+        ┌───────────▼──────────┐     │   ┌─────────────▼─────────┐    ┌──▼──────────────┐
+        │   DATA_SOURCES       │     │   │  INGESTION_JOBS       │    │ EMISSION_FACTORS│
+        │                      │     │   │                       │    │                  │
+        │  PK: id              │ 1:N │   │  PK: id               │    │  PK: id          │
+        │  FK: company_id      │────►│   │  FK: data_source_id   │    │  fuel_type       │
+        │  source_type         │     │   │  status               │    │  scope           │
+        │  name                │     │   │  file_name            │    │  factor_kg_co2e  │
+        │  config              │     │   │  started_at           │    │  unit            │
+        └──────────────────────┘     │   │  completed_at         │    │  source          │
+                                     │   │  total_rows           │    │  valid_from      │
+                                     │   │  successful_rows      │    │  valid_to        │
+                                     │   │  failed_rows          │    │                  │
+                                     │   │  error_log            │    │                  │
+                                     │   └───────────────────────┘    └──────────────────┘
+                                     │
+                    ┌────────────────▼──────────────────┐
+                    │        EMISSIONS (CORE)           │
+                    │                                   │
+                    │  PK: id                           │
+                    │  FK: company_id                   │
+                    │  FK: data_source_id               │
+                    │  FK: ingestion_job_id             │
+                    │  scope                            │
+                    │  category                         │
+                    │  activity_date                    │
+                    │  original_value/unit              │
+                    │  normalized_value/unit            │
+                    │  co2e_kg                          │
+                    │  status (workflow)                │
+                    │  reviewed_by                      │
+                    │  raw_data (JSONB)                 │
+                    │  notes                            │
+                    │                                   │
+                    └──────────────┬──────────────────┘
+                                   │
+                                   │ 1:N
+                                   │
+                    ┌──────────────▼──────────────┐
+                    │    AUDIT_LOGS               │
+                    │                             │
+                    │  PK: id                     │
+                    │  FK: emission_id            │
+                    │  user                       │
+                    │  action                     │
+                    │  field_name                 │
+                    │  old_value                  │
+                    │  new_value                  │
+                    │  timestamp                  │
+                    │  (Append-only)              │
+                    │                             │
+                    └─────────────────────────────┘
+
+
+                    ┌──────────────────────────────┐
+                    │  FACILITIES (Optional)        │
+                    │                              │
+                    │  PK: id                      │
+                    │  FK: data_source_id          │
+                    │  name                        │
+                    │  plant_code                  │
+                    │  address                     │
+                    │  city / state / country      │
+                    │  lat / long (geospatial)     │
+                    │  egrid_subregion             │
+                    │                              │
+                    └──────────────────────────────┘
 ```
 
 ---
