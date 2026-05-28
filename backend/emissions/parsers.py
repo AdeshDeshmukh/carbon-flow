@@ -1,28 +1,68 @@
-import pandas as pd
+import csv
+import json
+import io
 from datetime import datetime
-from decimal import Decimal
 
+def parse_sap(file_obj):
+    records = []
+    decoded_file = file_obj.read().decode('utf-8')
+    reader = csv.DictReader(io.StringIO(decoded_file))
+    
+    for row in reader:
+        raw_date = row.get('Posting_Date', '')
+        std_date = None
+        if raw_date:
+            try:
+                std_date = datetime.strptime(raw_date, '%Y%m%d').strftime('%Y-%m-%d')
+            except ValueError:
+                try:
+                    std_date = datetime.strptime(raw_date, '%d.%m.%Y').strftime('%Y-%m-%d')
+                except ValueError:
+                    pass
 
-UNIT_CONVERSIONS = {
-    'GAL': {'to': 'L', 'factor': Decimal('3.78541')},
-    'SCF': {'to': 'M3', 'factor': Decimal('0.0283168')},
-    'miles': {'to': 'km', 'factor': Decimal('1.60934')},
-}
+        try:
+            quantity = float(row.get('Quantity', 0))
+        except ValueError:
+            quantity = 0.0
 
+        records.append({
+            'source_type': 'SAP',
+            'date': std_date,
+            'quantity': quantity,
+            'unit': row.get('Unit', ''),
+            'raw_payload': row
+        })
+    return records
 
-EMISSION_FACTORS = {
-    ('diesel', 'L', '1'): Decimal('2.698'),
-    ('gasoline', 'L', '1'): Decimal('2.320'),
-    ('natural_gas', 'SCF', '1'): Decimal('0.05444'),
-    ('natural_gas', 'M3', '1'): Decimal('1.922'),
-    ('propane', 'L', '1'): Decimal('1.511'),
-    ('biodiesel', 'L', '1'): Decimal('2.497'),
-    ('electricity_us_avg', 'kWh', '2'): Decimal('0.350'),
-    ('flight_longhaul_economy', 'passenger-km', '3'): Decimal('0.200110'),
-    ('flight_longhaul_business', 'passenger-km', '3'): Decimal('0.580290'),
-    ('flight_shorthaul_economy', 'passenger-km', '3'): Decimal('0.182870'),
-    ('flight_shorthaul_business', 'passenger-km', '3'): Decimal('0.274300'),
-}
+def parse_utility(file_obj):
+    records = []
+    decoded_file = file_obj.read().decode('utf-8')
+    reader = csv.DictReader(io.StringIO(decoded_file))
+    
+    for row in reader:
+        records.append({
+            'source_type': 'UTILITY',
+            'date': row.get('Bill_Start_Date'),
+            'quantity': float(row.get('Usage_kWh', 0) or 0),
+            'unit': 'kWh',
+            'raw_payload': row
+        })
+    return records
+
+def parse_travel(file_obj):
+    records = []
+    data = json.load(file_obj)
+    trips = data if isinstance(data, list) else data.get('trips', [])
+    
+    for trip in trips:
+        records.append({
+            'source_type': 'TRAVEL',
+            'date': trip.get('Travel_Date') or trip.get('departure_date'),
+            'quantity': 1,
+            'unit': 'flight_segment',
+            'raw_payload': trip
+        })
+    return records
 
 
 def normalize_unit(value, from_unit):
